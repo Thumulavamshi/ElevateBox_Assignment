@@ -136,7 +136,8 @@ async def on_call_ended(call_id):
         # This dispatch was missing entirely, so the resume - which the
         # assignment asks for by name - was never sent.
         dispatch(call_id, "whatsapp_resume", trigger_source="post_call",
-                 payload={"demo_url": settings.demo_url, "repo_url": settings.repo_url})
+                 payload={"demo_url": settings.demo_url, "repo_url": settings.repo_url,
+                          "note_url": settings.note_url})
     except Exception:
         log.exception("post-call understanding failed on call %s", call_id)
 

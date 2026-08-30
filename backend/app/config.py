@@ -106,8 +106,20 @@ class Settings:
 
         self.your_mobile = os.environ.get("YOUR_MOBILE_NUMBER", "")
         self.your_name = os.environ.get("YOUR_NAME", "").strip()
-        self.demo_url = os.environ.get("DEMO_URL", "").strip()
-        self.repo_url = os.environ.get("REPO_URL", "").strip()
+        # The assignment's "send to 8688664337" list names the live prototype and
+        # the repository link as deliverables, so they are NOT optional extras -
+        # a missing env var silently drops a required item from the message. They
+        # default to the real published URLs rather than to "" for the same reason
+        # EVALUATOR_NUMBER is hard-coded: these are public facts about the
+        # submission, not credentials, and the deliverable must not depend on a
+        # dashboard setting anyone can forget. An env var still overrides.
+        self.demo_url = (os.environ.get("DEMO_URL", "").strip()
+                         or "https://elevatebox-assignment-t9cg.onrender.com/")
+        self.repo_url = (os.environ.get("REPO_URL", "").strip()
+                         or "https://github.com/Thumulavamshi/ElevateBox_Assignment")
+        self.note_url = (os.environ.get("NOTE_URL", "").strip()
+                         or "https://github.com/Thumulavamshi/ElevateBox_Assignment"
+                            "/blob/main/NOTE.md")
         self.wa_resume_filename = os.environ.get(
             "WHATSAPP_RESUME_FILENAME", "resume.pdf")
 

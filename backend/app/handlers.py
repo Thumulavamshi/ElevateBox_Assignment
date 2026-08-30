@@ -265,14 +265,22 @@ async def send_resume(call_id, payload):
         raise RuntimeError("WHATSAPP_RESUME_URL not set - cannot attach the resume")
 
     if whatsapp.supports_freeform():
-        caption = "\n".join(filter(None, [
-            "My resume, as promised.",
-            "",
-            f"Live prototype: {payload.get('demo_url')}" if payload.get("demo_url") else "",
-            f"Code: {payload.get('repo_url')}" if payload.get("repo_url") else "",
-            "",
-            _signature(),
-        ]))
+        # Built by appending rather than filtering a flat list: `filter(None, ...)`
+        # strips the "" separators along with the absent links, which collapsed
+        # the whole message into one unreadable block.
+        lines = ["My resume, as promised."]
+        links = [
+            ("Live prototype (press the button and it calls you back)", "demo_url"),
+            ("Code", "repo_url"),
+            ("What works, what doesn't", "note_url"),
+        ]
+        shown = [f"{label}:\n{payload[key]}" for label, key in links if payload.get(key)]
+        if shown:
+            lines += [""] + shown
+        signature = _signature()
+        if signature:
+            lines += ["", signature]
+        caption = "\n".join(lines)
         return await asyncio.to_thread(whatsapp.send_media, to, "document", settings.wa_resume_url,
                                    caption=caption,
                                    filename=settings.wa_resume_filename)
