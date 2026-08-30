@@ -39,10 +39,10 @@ dial → speak → sell → discover → understand → classify → act mid-cal
 |---|---|
 | Turn latency | **median 1.7 s, 0 of 9 turns over 3 s** (Vapi's own metrics) |
 | Discovery coverage | **5/5 topics** on a full Hindi call |
-| Intent classification | **96%** over 57 labelled cases · **4/4** on the brief's own phrases · hi 4/4, te 3/4, code-mixed 5/5 |
+| Intent classification | **96%** (55/57) at last full run · **4/4** on the brief's own phrases · hi 4/4, te 3/4, code-mixed 5/5 · rules layer **59/59** |
 | Callback time resolution | **57/57** phrasings against a frozen clock, en/hi/te |
 | Slot extraction | **30 slots** over 7 real calls, 29 verbatim-quoted, **0 quote-integrity violations** |
-| Backend | **113 assertions**, no network, no spend, ~4 s |
+| Backend | **123 assertions**, no network, no spend, ~4 s |
 
 Every number above is reproducible from this repo — see **Running it**.
 
@@ -92,7 +92,7 @@ from the plan and why.
 Nothing here needs an API key or spends money.
 
 ```bash
-python backend/smoke_test.py          # 113 assertions, no network
+python backend/smoke_test.py          # 123 assertions, no network
 python backend/eval_timeparse.py      # 57 spoken-time phrasings, frozen clock
 python backend/eval_classifier.py     # deterministic classifier rules
 python backend/eval_extraction.py     # quote-integrity verifier

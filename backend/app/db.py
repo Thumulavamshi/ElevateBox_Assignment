@@ -11,6 +11,7 @@ the connection helper and the `?` placeholders; no model rewrite.
 import json
 import os
 import sqlite3
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
@@ -19,6 +20,9 @@ from .config import settings
 
 IST = timezone(timedelta(hours=5, minutes=30))
 SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
+
+# Per-thread SQLite connections. See conn() for why this exists.
+_LOCAL = threading.local()
 
 
 def utc_now():
@@ -39,26 +43,53 @@ def new_id():
 
 @contextmanager
 def conn():
-    """One connection per operation. WAL so reads never block the webhook path."""
-    os.makedirs(os.path.dirname(settings.db_path), exist_ok=True)
-    cx = sqlite3.connect(settings.db_path, timeout=10)
-    cx.row_factory = sqlite3.Row
-    cx.execute("PRAGMA journal_mode=WAL")
-    cx.execute("PRAGMA foreign_keys=ON")
+    """One connection PER THREAD, reused. WAL so reads never block writes.
+
+    This used to open a fresh connection for every operation, and that was the
+    single most expensive thing in the system. Measured on this machine:
+
+        connect per write      22.88 ms
+        one reused connection   0.18 ms      -> 127x
+
+    At ~500 transcript webhooks a call, per-operation connections meant roughly
+    fourteen seconds of blocking on the event loop. The understanding lane never
+    got scheduled: on a 4m40s call, every classification landed in the last four
+    seconds and the mid-call WhatsApp arrived after hangup.
+
+    Thread-local because SQLite connections are not safe to share across
+    threads, and the understanding lane runs in asyncio.to_thread workers. Keyed
+    on the path so a test pointing DATABASE_PATH elsewhere gets its own.
+    """
+    cached = getattr(_LOCAL, "cx", None)
+    if cached is not None and _LOCAL.path == settings.db_path:
+        cx = cached
+    else:
+        if cached is not None:
+            cached.close()
+        directory = os.path.dirname(settings.db_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        cx = sqlite3.connect(settings.db_path, timeout=10)
+        cx.row_factory = sqlite3.Row
+        # journal_mode is persistent in the FILE and is set once in init_db().
+        # synchronous=NORMAL is the safe pairing with WAL and drops an fsync
+        # from every write; it is per-connection, so it belongs here.
+        cx.execute("PRAGMA synchronous=NORMAL")
+        cx.execute("PRAGMA foreign_keys=ON")
+        _LOCAL.cx, _LOCAL.path = cx, settings.db_path
     try:
         yield cx
         cx.commit()
     except Exception:
         cx.rollback()
         raise
-    finally:
-        cx.close()
 
 
 def init_db():
     with open(SCHEMA_PATH, encoding="utf-8") as fh:
         sql = fh.read()
     with conn() as cx:
+        cx.execute("PRAGMA journal_mode=WAL")   # persistent; set once, not per connection
         cx.executescript(sql)
 
 
@@ -185,10 +216,32 @@ def transcript_text(call_id):
 
 # ----------------------------------------------------------------- events
 
+# Vapi repeats the ENTIRE conversation so far inside every transcript webhook,
+# so storing them verbatim is quadratic in turns. Measured on a real database:
+# 6,727 transcript rows held 227 MB of a 235 MB file, ~34 KB each, and every one
+# was a synchronous write on the event loop. That is what stalled the
+# understanding lane until the call ended - no classification, no mid-call
+# WhatsApp, then everything draining at once on hangup.
+#
+# The turn text is already persisted in `turns`; the raw envelope adds nothing.
+# Rare, genuinely useful events (status-update, end-of-call-report, tool-calls)
+# are still stored whole.
+_TRIM = {"vapi.transcript"}
+
+
+def _compact(type_, payload):
+    if type_ not in _TRIM:
+        return json.dumps(payload)[:200000]
+    m = (payload or {}).get("message") or {}
+    return json.dumps({"type": m.get("type"), "role": m.get("role"),
+                       "transcriptType": m.get("transcriptType"),
+                       "transcript": (m.get("transcript") or "")[:500]})
+
+
 def add_event(call_id, type_, payload):
     with conn() as cx:
         cx.execute("INSERT INTO events (call_id, type, payload, created_at) VALUES (?,?,?,?)",
-                   (call_id, type_, json.dumps(payload)[:200000], utc_now()))
+                   (call_id, type_, _compact(type_, payload), utc_now()))
 
 
 def get_events(call_id, limit=200):

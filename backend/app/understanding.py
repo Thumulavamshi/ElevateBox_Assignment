@@ -18,6 +18,7 @@ stalls transcript ingress for the whole live call.
 
 import asyncio
 import logging
+import re
 
 from . import classifier, db, extraction
 from .config import settings
@@ -38,10 +39,38 @@ LABELS = ("hot", "warm", "cold")
 BARRIERS = ("budget", "timing", "decision_maker", "none")
 
 
+# The agent announcing that it has ALREADY sent something. Present/past tense
+# only - "I'll send it across" is a promise, not a claim.
+#
+# This exists because on 30 Aug the model said "Just send that across to your
+# WhatsApp. You should see it come through now." having never called the tool,
+# on a call the classifier read as warm throughout. Nothing was sent. Saying so
+# to the evaluator is worse than staying quiet, and no prompt rule can be relied
+# on to prevent it - the prompt already forbade exactly this.
+_CLAIMED_SEND = re.compile(
+    r"(just\s+sent|already\s+sent|have\s+sent|i've\s+sent|sent\s+(it|that|this|them)\b"
+    r"|on\s+its\s+way\s+to\s+your\s+whatsapp|come\s+through\s+now"
+    r"|भेज\s*दिए|भेज\s*दिया|भेज\s*चुक"
+    r"|పంపాను|పంపించాను|పంపేశాను)",
+    re.I,
+)
+
+
 async def on_turn(call_id, role, text, seq):
     """One final transcript turn has landed. Fire-and-forget; must not raise."""
     try:
         if role != "user":
+            # Third trigger path. The tool call and the watchdog are the designed
+            # two; this one catches the case where the agent SAYS it sent
+            # something without either having fired. Same idempotency key, so if
+            # a real send already happened this is a no-op - it can only ever
+            # turn a false claim into a true one.
+            if role == "assistant" and _CLAIMED_SEND.search(text or ""):
+                if dispatch(call_id, "whatsapp_hot",
+                            payload={"at_turn_seq": seq, "reason": "agent said it had sent"},
+                            trigger_source="claimed_by_agent"):
+                    log.warning("call %s: agent claimed a send with no action fired - "
+                                "sending now to make the claim true", call_id)
             return  # only the lead's words carry facts to extract
 
         # Extraction runs CONCURRENTLY with classification rather than before it.

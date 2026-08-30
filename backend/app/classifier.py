@@ -146,9 +146,17 @@ _SEND_ME = re.compile(
     re.I,
 )
 _SEND_ACROSS = re.compile(r"\bsend\s+(it|that|those|them)\s+(across|over|through)\b", re.I)
+# Word order is NOT fixed: "when can you start" and "by when you can make it
+# ready" are the same question. The original pattern required can/could BEFORE
+# you/we and missed the second form on a live call - which is the assignment's
+# own "how soon can you start" category, the thing this rule exists for.
+# The delivery verbs are widened for the same reason ("make it ready", "build").
 _WHEN_START = re.compile(
-    r"\b(how\s+soon|when)\b[^.?!]{0,25}\b(can|could|will|would|do)\b[^.?!]{0,15}"
-    r"\b(you|we|u)\b[^.?!]{0,15}\b(start|begin|deliver|finish|do\s+it)\b",
+    r"\b(how\s+soon|when|by\s+when)\b[^.?!]{0,30}"
+    r"(\b(can|could|will|would|do)\b[^.?!]{0,15}\b(you|we|u)\b"
+    r"|\b(you|we|u)\b[^.?!]{0,15}\b(can|could|will|would)\b)"
+    r"[^.?!]{0,20}\b(start|begin|deliver|finish|do\s+it|make|build|ready|"
+    r"complete|hand\s*over|give\s+it)\b",
     re.I,
 )
 _CAN_YOU_START = re.compile(r"\b(can|could)\s+(you|we)\s+start\b", re.I)

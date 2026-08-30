@@ -4,6 +4,7 @@ Kept separate from `actions.py` so the bus stays generic - it knows about
 claiming, idempotency and background execution, not about WhatsApp.
 """
 
+import asyncio
 import logging
 
 from . import db, whatsapp
@@ -117,7 +118,7 @@ async def send_mid_call(call_id, payload):
         signature = _signature()
         if signature:
             body += ["", signature]
-        result = whatsapp.send_text(to, "\n".join(body))
+        result = await asyncio.to_thread(whatsapp.send_text, to, "\n".join(body))
         log.info("mid-call whatsapp sent for %s (free-form)", call_id)
         return result
 
@@ -132,7 +133,7 @@ async def send_mid_call(call_id, payload):
         # only the words differ.
         log.info("mid-call template %s takes no parameters", settings.wa_tpl_midcall)
 
-    result = whatsapp.send_template(
+    result = await asyncio.to_thread(whatsapp.send_template, 
         to,
         settings.wa_tpl_midcall,
         body_params=params,
@@ -184,12 +185,12 @@ async def send_followup(call_id, payload):
             # items together - the literal reading of "the message that reaches
             # me must contain all four of these" (OQ-02). The template path had
             # to split them.
-            result = whatsapp.send_media(to, "image", settings.wa_architecture_url,
+            result = await asyncio.to_thread(whatsapp.send_media, to, "image", settings.wa_architecture_url,
                                          caption=body)
         else:
             log.warning("no WHATSAPP_ARCHITECTURE_IMAGE_URL - sending text only, "
                         "which drops a required Section 06 element")
-            result = whatsapp.send_text(to, body)
+            result = await asyncio.to_thread(whatsapp.send_text, to, body)
         log.info("follow-up whatsapp sent for %s (free-form)", call_id)
         return result
 
@@ -200,7 +201,7 @@ async def send_followup(call_id, payload):
         log.warning("no WHATSAPP_ARCHITECTURE_IMAGE_URL - sending without the image, "
                     "which drops a required Section 06 element")
 
-    result = whatsapp.send_template(
+    result = await asyncio.to_thread(whatsapp.send_template, 
         to,
         settings.wa_tpl_followup,
         body_params=[
@@ -214,6 +215,41 @@ async def send_followup(call_id, payload):
         lang=settings.wa_template_lang,
     )
     log.info("follow-up whatsapp sent for %s", call_id)
+    return result
+
+
+@handler("callback_confirm")
+async def send_callback_confirm(call_id, payload):
+    """Written proof, in their hand, that the callback was actually booked.
+
+    Fires on the BOOKING, not on call end - so it is intent-triggered in the
+    same sense the mid-call message is, and it is a different message with a
+    different purpose (audit Finding H's condition for keeping it).
+
+    Without this the callback is invisible: the agent says a time, and the lead
+    has nothing but memory until the phone rings a day later.
+    """
+    call = db.get_call(call_id) or {}
+    to = call.get("destination") or settings.allowed_destination
+
+    pending = [c for c in db.get_callbacks(call_id) if c["status"] == "pending"]
+    if not pending:
+        raise RuntimeError("no pending callback to confirm")
+    when = db.to_ist(pending[-1]["resolved_at_utc"])
+
+    body = [f"Confirming our call: {when:%A %d %B} at {when:%I:%M %p}".replace(" 0", " "),
+            ""]
+    slots = db.get_slots(call_id)
+    bullets = _bullets(slots)
+    if bullets:
+        body += ["We'll pick up from where we left off:"] + bullets + [""]
+    body += ["If that time no longer suits, just reply here and I'll move it."]
+    signature = _signature()
+    if signature:
+        body += ["", signature]
+
+    result = await asyncio.to_thread(whatsapp.send_text, to, "\n".join(body))
+    log.info("callback confirmation sent for %s (%s)", call_id, when)
     return result
 
 
@@ -237,11 +273,11 @@ async def send_resume(call_id, payload):
             "",
             _signature(),
         ]))
-        return whatsapp.send_media(to, "document", settings.wa_resume_url,
+        return await asyncio.to_thread(whatsapp.send_media, to, "document", settings.wa_resume_url,
                                    caption=caption,
                                    filename=settings.wa_resume_filename)
 
-    return whatsapp.send_template(
+    return await asyncio.to_thread(whatsapp.send_template, 
         to,
         settings.wa_tpl_resume,
         body_params=[

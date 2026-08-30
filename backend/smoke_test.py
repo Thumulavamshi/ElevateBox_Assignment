@@ -158,7 +158,9 @@ def main():
               h["actions"]["whatsapp_hot"] == "wired"
               and h["actions"]["whatsapp_followup"] == "wired", h["actions"])
         check("and still reports genuinely unbuilt actions as stubs",
-              h["actions"]["callback_confirm"] == "stub", h["actions"])
+              h["actions"]["whatsapp_brochure"] == "stub", h["actions"])
+        check("the callback confirmation is wired",
+              h["actions"]["callback_confirm"] == "wired", h["actions"])
 
         print("\nTRIGGER SAFETY")
         check("endpoint accepts no destination parameter",
@@ -543,11 +545,76 @@ def main():
         ist = db.to_ist("2026-08-28T10:00:00+00:00")
         check("UTC -> IST is +5:30", ist.hour == 15 and ist.minute == 30, str(ist))
 
+        print("\nACTION RETRIES  (a transient blip must not lose a message)")
+        from app import actions as _act
+        _act.BACKOFF_SECONDS = 0          # no real sleeping in tests
+        attempts = {"n": 0}
+
+        @_act.handler("whatsapp_brochure")
+        async def _flaky(call_id, payload):
+            attempts["n"] += 1
+            if attempts["n"] < 3:
+                raise RuntimeError("EOF occurred in violation of protocol")
+            return {"message_id": "wamid.RETRY"}
+
+        PLACED.clear()
+        callR = client.post("/calls").json()["call_id"]
+        _act.dispatch(callR, "whatsapp_brochure", trigger_source="test")
+        act = [a for a in db.get_actions(callR) if a["type"] == "whatsapp_brochure"][0]
+        check("a transient TLS failure is retried, not dropped",
+              act["status"] == "sent" and attempts["n"] == 3, (act["status"], attempts))
+        check("and the attempt count is recorded", act["attempts"] == 3, act["attempts"])
+
+        permanent = {"n": 0}
+
+        @_act.handler("whatsapp_brochure")
+        async def _refused(call_id, payload):
+            permanent["n"] += 1
+            raise RuntimeError("destination is not the allowed destination")
+
+        callR2 = client.post("/calls").json()["call_id"]
+        _act.dispatch(callR2, "whatsapp_brochure", trigger_source="test")
+        act2 = [a for a in db.get_actions(callR2) if a["type"] == "whatsapp_brochure"][0]
+        check("a permanent refusal is NOT retried",
+              act2["status"] == "failed" and permanent["n"] == 1,
+              (act2["status"], permanent))
+
+        print("\nCLAIMED SEND  (the agent must not be able to lie)")
+        # On 30 Aug the model said "you should see it come through now" having
+        # never called the tool, on a warm-classified call. Nothing was sent.
+        PLACED.clear()
+        callA = client.post("/calls").json()["call_id"]
+        provA = db.get_call(callA)["provider_call_id"]
+        webhook(client, {"type": "transcript", "transcriptType": "final",
+                         "role": "assistant", "call": {"id": provA},
+                         "transcript": "I'll put that together and send it across."})
+        check("a PROMISE to send fires nothing",
+              not any(a["type"] == "whatsapp_hot" for a in db.get_actions(callA)),
+              db.get_actions(callA))
+        webhook(client, {"type": "transcript", "transcriptType": "final",
+                         "role": "assistant", "call": {"id": provA},
+                         "transcript": "Just sent that to your WhatsApp - "
+                                       "you should see it come through now."})
+        acts = [a for a in db.get_actions(callA) if a["type"] == "whatsapp_hot"]
+        check("a CLAIM to have sent fires the message, making it true",
+              len(acts) == 1, db.get_actions(callA))
+        check("and is attributed to that path, not faked as a tool call",
+              acts and acts[0]["trigger_source"] == "claimed_by_agent", acts)
+        webhook(client, {"type": "transcript", "transcriptType": "final",
+                         "role": "assistant", "call": {"id": provA},
+                         "transcript": "As I said, I have sent it already."})
+        check("repeating the claim does not send twice",
+              len([a for a in db.get_actions(callA)
+                   if a["type"] == "whatsapp_hot"]) == 1, db.get_actions(callA))
+
         print("\nCALLBACK BOOKING  (from the tool call, as the agent would)")
         from app import callbacks as cb
         PLACED.clear()
         call5 = client.post("/calls").json()["call_id"]
-        r = webhook(client, {"type": "tool-calls", "call": {"id": "prov-call-5"},
+        # Read the provider id back rather than guessing "prov-call-5" - the fake
+        # dialler's counter moves whenever a section above adds a call.
+        prov5 = db.get_call(call5)["provider_call_id"]
+        r = webhook(client, {"type": "tool-calls", "call": {"id": prov5},
                              "toolCallList": [{"id": "cb-1", "function":
                                                {"name": "schedule_callback",
                                                 "arguments": {"when": "tomorrow morning"}}}]})
@@ -565,7 +632,7 @@ def main():
         # Vapi's arguments arrive as an object from some providers and a JSON
         # string from others. Losing a booking to that would be a silly way to
         # drop ten points.
-        webhook(client, {"type": "tool-calls", "call": {"id": "prov-call-5"},
+        webhook(client, {"type": "tool-calls", "call": {"id": prov5},
                          "toolCallList": [{"id": "cb-2", "function":
                                            {"name": "schedule_callback",
                                             "arguments": '{"when": "next monday"}'}}]})
@@ -575,7 +642,7 @@ def main():
               [b["status"] for b in booked] == ["cancelled", "pending"],
               [b["status"] for b in booked])
 
-        r = webhook(client, {"type": "tool-calls", "call": {"id": "prov-call-5"},
+        r = webhook(client, {"type": "tool-calls", "call": {"id": prov5},
                              "toolCallList": [{"id": "cb-3", "function":
                                                {"name": "schedule_callback",
                                                 "arguments": {"when": "whenever"}}}]})
@@ -583,6 +650,15 @@ def main():
               len(db.get_callbacks(call5)) == 2
               and "Could not work out" in r.json()["results"][0]["result"],
               r.json()["results"][0]["result"])
+
+        # Booking must also put the time in writing. Otherwise the lead has
+        # nothing but memory until the phone rings, and we have no visible proof
+        # the scheduler ran at all.
+        confirms = [a for a in db.get_actions(call5) if a["type"] == "callback_confirm"]
+        check("booking a callback also confirms it in writing",
+              len(confirms) == 1 and confirms[0]["status"] == "sent", confirms)
+        check("attributed to the booking, not to call end",
+              confirms and confirms[0]["trigger_source"] == "callback_booked", confirms)
 
         print("\nCALLBACK EXECUTION  (the worker actually dials)")
         from datetime import datetime, timedelta, timezone as _tzone

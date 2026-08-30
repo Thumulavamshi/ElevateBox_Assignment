@@ -19,6 +19,7 @@ No handler is registered yet. Registering one is the whole of the next phase:
 
 import asyncio
 import logging
+import os
 import traceback
 
 from . import db
@@ -100,21 +101,51 @@ def dispatch(call_id, action_type, payload=None, trigger_source=None, background
     return action_id
 
 
+# Design §7 called for "retry with backoff on the action bus" and it was never
+# built. A real follow-up then died on `EOF occurred in violation of protocol`
+# part-way through a 1.8 MB upload - one transient TLS hiccup and the evaluator
+# silently never receives the architecture image, a required Section 06 element.
+MAX_ATTEMPTS = int(os.environ.get("ACTION_MAX_ATTEMPTS", "3"))
+BACKOFF_SECONDS = 3
+
+# Worth retrying: the network gave out. Not worth retrying: we are misconfigured
+# or the destination is refused - those fail identically every time and a retry
+# just delays an honest error.
+_TRANSIENT = ("eof occurred", "timed out", "timeout", "connection", "reset",
+              "temporarily", "unreachable", "ssl", "502", "503", "504")
+
+
+def _is_transient(exc):
+    return any(s in str(exc).lower() for s in _TRANSIENT)
+
+
 async def _run(action_id, call_id, action_type, fn, payload):
-    db.update_action(action_id, status="sending", attempts=1)
-    try:
-        result = await fn(call_id, payload or {})
-        db.update_action(
-            action_id,
-            status="sent",
-            sent_at=db.utc_now(),
-            provider_message_id=(result or {}).get("message_id"),
-        )
-        log.info("action %s sent for call %s", action_type, call_id)
-    except Exception as exc:
-        db.update_action(action_id, status="failed",
-                         error=f"{exc}\n{traceback.format_exc()[:800]}")
-        log.exception("action %s failed for call %s", action_type, call_id)
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        db.update_action(action_id, status="sending", attempts=attempt)
+        try:
+            result = await fn(call_id, payload or {})
+            db.update_action(
+                action_id,
+                status="sent",
+                sent_at=db.utc_now(),
+                provider_message_id=(result or {}).get("message_id"),
+            )
+            log.info("action %s sent for call %s%s", action_type, call_id,
+                     f" (attempt {attempt})" if attempt > 1 else "")
+            return
+        except Exception as exc:
+            last = attempt == MAX_ATTEMPTS
+            if last or not _is_transient(exc):
+                db.update_action(action_id, status="failed",
+                                 error=f"{exc}\n{traceback.format_exc()[:800]}")
+                log.exception("action %s failed for call %s (attempt %d/%d)",
+                              action_type, call_id, attempt, MAX_ATTEMPTS)
+                return
+            wait = BACKOFF_SECONDS * attempt
+            log.warning("action %s attempt %d/%d failed transiently (%s) - "
+                        "retrying in %ds", action_type, attempt, MAX_ATTEMPTS,
+                        str(exc)[:80], wait)
+            await asyncio.sleep(wait)
 
 
 def status_report():

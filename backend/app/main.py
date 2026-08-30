@@ -327,9 +327,15 @@ async def _handle_tool_calls(call_id, message, background):
             # live call AFTER the callback had already been booked - the booking
             # survived, the agent never got to say it aloud, which is the half
             # the evaluator can actually hear.
-            results.append({"toolCallId": tool_id,
-                            "result": await asyncio.to_thread(
-                                callbacks.book, call_id, phrase)})
+            spoken = await asyncio.to_thread(callbacks.book, call_id, phrase)
+            # Confirm it in writing, on the booking rather than at call end, so
+            # the lead has the time in their hand and we have visible proof the
+            # scheduler ran. Idempotent, so restating a time does not re-send.
+            if spoken.startswith("Booked"):
+                actions.dispatch(call_id, "callback_confirm",
+                                 trigger_source="callback_booked",
+                                 background=background)
+            results.append({"toolCallId": tool_id, "result": spoken})
         else:
             log.warning("unknown tool call %r on call %s", name, call_id)
             results.append({"toolCallId": tool_id, "result": "Unknown tool."})

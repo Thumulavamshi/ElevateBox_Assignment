@@ -540,6 +540,26 @@
    "_why": "ADVERSARIAL: Telugu refusal using vaddu. Must not read as intent.",
    "transcript": "assistant: Details pampana?\nuser: Vaddu andi, avasaram ledu. Thanks.",
    "lang": "mixed"
+  },
+  {
+   "id": "h13",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "lang": "en",
+   "_why": "FROM A LIVE CALL: 'by when you can make it ready' is the assignment's own 'how soon can you start' category with the words reordered. The original rule required can/could BEFORE you/we and missed it.",
+   "transcript": "assistant: When do you want your online store to be ready?\nuser: As soon as possible. You give me an timeline, like by when you can make it ready."
+  },
+  {
+   "id": "x07",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "lang": "en",
+   "_why": "ADVERSARIAL for the widened when-start rule: contains 'when', 'you' and 'ready' but is a brush-off, not a start-date question.",
+   "transcript": "assistant: Shall I send you a proposal?\nuser: When I am ready I will let you know. Not now."
   }
  ]
 }

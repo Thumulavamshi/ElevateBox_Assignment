@@ -1,12 +1,13 @@
 # Backend — local skeleton
 
-The server the remaining features hang off. Nothing is deployed yet, and the working
-Vapi CLI in `agent/` is untouched — you can still run calls exactly as before.
+The server everything hangs off. Runs locally behind a tunnel today; `docs/deployment.md`
+covers putting it on Render. The Vapi CLI in `agent/` places calls either way.
 
 **Built:** webhook ingress, persistence, trigger endpoint, action bus, WhatsApp sending,
 Hot/Warm/Cold classification with a labelled evaluation set, and slot extraction with a
 quote-integrity eval over the real call transcripts.
-**Not built:** callback resolution and the polling worker.
+**Not built:** the cold-lead brochure, and `callback_confirm` fires on booking rather than
+on every classification (audit Finding H).
 
 ## Run it
 
@@ -25,7 +26,7 @@ Override anything in `backend/.env` if you want them separate.
 python backend/smoke_test.py
 ```
 
-42 assertions replaying a realistic Vapi webhook sequence: trigger safety, transcript handling,
+123 assertions replaying a realistic Vapi webhook sequence: trigger safety, transcript handling,
 tool calls, idempotency, end-of-call reconciliation, webhook auth, IST conversion, callback
 claiming, and classification firing the mid-call action end to end. It caught two real bugs (see
 *Task lifetime* below).
@@ -88,16 +89,17 @@ worth being able to show, and it makes the mid-call trigger auditable after the 
 Every timestamp is stored UTC. `db.to_ist()` is the only way a time becomes Asia/Kolkata, for
 anything spoken or displayed.
 
-## Wiring it to Vapi (deferred until deploy)
+## Wiring it to Vapi
 
-The webhook needs a public URL, so this stays local for now. When we deploy:
+`agent/agent.py deploy` does all of this from `SERVER_URL`:
 
-1. Set the assistant's `serverUrl` to `https://<host>/vapi/webhook`
-2. Set `VAPI_WEBHOOK_SECRET` and add the same value as an `x-vapi-secret` header
-3. Declare the `send_details_now` tool on the assistant — preferably **non-blocking**, so the
-   agent keeps talking while it fires (audit R4)
+1. Sets the assistant's `serverUrl` to `https://<host>/vapi/webhook`
+2. Applies `VAPI_WEBHOOK_SECRET` as the `x-vapi-secret` header
+3. Creates both tools as their own `/tool` resources and attaches them by id
 
-Until then `agent/agent.py call --yes` remains the way to place calls, unchanged.
+`send_details_now` is **async** (audit R4) — measured: the watchdog had already sent the message
+two minutes before the model called the tool, so waiting bought nothing and cost an audible pause.
+`schedule_callback` stays synchronous because its return value is the time the agent says aloud.
 
 ## Classification (the 15-point row)
 
@@ -132,7 +134,7 @@ python backend/eval_classifier.py          # rules only - no key, no cost
 python backend/eval_classifier.py --llm    # full pipeline (needs a key, costs money)
 ```
 
-44 labelled cases in `eval/classification_cases.json`, written with realistic transcription noise
+59 labelled cases in `eval/classification_cases.json`, written with realistic transcription noise
 because that is what the classifier will actually see. Four come from the assignment itself and are
 a **must-pass gate**, not an average. Six are adversarial: a hot phrase spoken by the agent, a
 send-me phrase next to a refusal, enthusiasm masking a real barrier, a lead who has barely spoken.
@@ -141,7 +143,9 @@ Thresholds (100% on the assignment's phrases, 85% overall, 80% on barriers) are 
 evaluator's. At n≈44 the interval is roughly ±11 points, so treat a near miss as noise and the
 must-pass gate as the real signal.
 
-**Rules pass: 44/44.** The model pass has not run — see below.
+**Rules pass: 59/59.** Model pass on `claude-haiku-4-5`: **55/57 = 96%** at the last full
+run, **4/4** on the assignment's own phrases, barriers 19/21. Two cases were added after that
+run, so the set is now 59 and the model figure is quoted against the 57 it was measured on.
 
 ### To run the model pass
 
@@ -149,9 +153,10 @@ must-pass gate as the real signal.
 pip install anthropic
 ```
 
-Then set `ANTHROPIC_API_KEY`. Optionally `CLASSIFIER_MODEL` to override the default
-(`claude-opus-5`). Until then `understanding.classify()` logs a warning and returns `None` rather
-than failing the call — a broken understanding lane must never take down a live conversation.
+Then set `ANTHROPIC_API_KEY`. `CLASSIFIER_MODEL` selects the model — **`claude-haiku-4-5`**
+is what we run: 96% against Opus 5's 98% at one fifth the price, and both clear every threshold.
+Without a key `understanding.classify()` logs a warning and returns `None` rather than failing the
+call — a broken understanding lane must never take down a live conversation.
 
 ## Slot extraction
 
@@ -186,11 +191,11 @@ damaging the 25-point row to serve the 10-point one. Being deterministic also me
 can be proven right against a frozen clock instead of hoped at.
 
 ```bash
-python backend/eval_timeparse.py       # 46 phrasings, frozen clock, no key, no cost
+python backend/eval_timeparse.py       # 57 phrasings, frozen clock, no key, no cost
 python backend/eval_timeparse.py -v    # also prints what the agent says back
 ```
 
-**46/46**, of which **25 are vague** — the case the scorecard names — plus 5 that must *not*
+**57/57**, of which **26 are vague** — the case the scorecard names — plus 5 that must *not*
 resolve, so the agent asks again rather than inventing a time. English, Hindi and Telugu, in both
 native script and romanisation.
 

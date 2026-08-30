@@ -649,6 +649,40 @@ def review(info):
     else:
         print(f"    {WARN} no performanceMetrics in this call payload")
 
+    # --- dead air the turn-latency number cannot see.
+    #
+    # `turnLatency` measures end-of-caller-speech -> FIRST agent audio. It stops
+    # counting there. If the agent then says a filler ("this will just take a
+    # sec"), waits on a synchronous tool, and only then answers, the caller hears
+    # one long pause but the metric records two short turns. A caller reported
+    # feeling >3 s gaps on a call that scored 0/10 over 3 s; this is where those
+    # seconds were hiding.
+    print("\n  DEAD AIR BETWEEN AGENT TURNS  (what turn latency cannot see)")
+    gaps = []
+    for i in range(1, len(msgs)):
+        prev, cur = msgs[i - 1], msgs[i]
+        if prev["role"] != "bot" or cur["role"] != "bot":
+            continue
+        start, prev_start = cur.get("secondsFromStart"), prev.get("secondsFromStart")
+        if start is None or prev_start is None:
+            continue
+        gap = start - (prev_start + (prev.get("duration") or 0) / 1000.0)
+        if gap > 0.25:                       # ignore normal sentence joins
+            gaps.append((round(gap, 1), str(prev.get("message", ""))[:46]))
+    if gaps:
+        gaps.sort(reverse=True)
+        worst = gaps[0][0]
+        print(f"    {len(gaps)} mid-turn pause(s), longest {worst}s")
+        for g, after in gaps[:3]:
+            print(f"      {g:>4}s after: {after!r}")
+        if worst > 3:
+            print(f"  {BAD} the caller heard {worst}s of silence mid-answer. Turn")
+            print("       latency scored this call as clean - it is not.")
+        else:
+            print(f"  {OK} longest mid-answer pause is under 3 s")
+    else:
+        print(f"    {OK} no mid-answer pauses")
+
     # --- transcript health: is the LINE working, or just the software?
     #
     # Added after a Telnyx call where every scored number looked fine but the
