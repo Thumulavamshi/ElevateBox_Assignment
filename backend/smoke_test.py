@@ -386,6 +386,23 @@ def main():
         check("and new facts still land", got.get("budget", {}).get("value") == "one lakh",
               got.get("budget"))
 
+        print("\nSILENT CALL  (nothing to follow up about)")
+        # A call where the line failed must not send the architecture image and
+        # resume with an empty recap. Redialling then delivers the whole set
+        # twice for one conversation, which is what happened in production.
+        PLACED.clear()
+        callS = client.post("/calls").json()["call_id"]
+        provS = db.get_call(callS)["provider_call_id"]
+        webhook(client, {"type": "transcript", "transcriptType": "final",
+                         "role": "user", "transcript": "hello",
+                         "call": {"id": provS}})
+        webhook(client, {"type": "end-of-call-report",
+                         "endedReason": "customer-ended-call",
+                         "call": {"id": provS}, "artifact": {"messages": []}})
+        acts = [a["type"] for a in db.get_actions(callS)]
+        check("a silent call sends no follow-up", "whatsapp_followup" not in acts, acts)
+        check("and no resume either", "whatsapp_resume" not in acts, acts)
+
         print("\nWHATSAPP PAYLOADS  (transport stubbed - no real send, no cost)")
         sent = WA_SENT          # stubbed at import time, see top of file
         dest = settings.allowed_destination
@@ -742,11 +759,17 @@ def main():
         check("a call that is still talking is left alone", call6 not in swept, swept)
 
         # Now age it past the stale window, with the provider reporting ended.
+        # A REAL conversation, not a one-liner: the post-call follow-up is now
+        # skipped for calls where nobody actually spoke, so the fixture has to
+        # clear that bar or this stops testing reconciliation and starts
+        # testing the silent-call guard.
         VAPI_CALLS[prov6] = {
             "status": "ended", "endedReason": "customer-ended-call",
             "artifact": {"messages": [
-                {"role": "user", "message": "We sell sarees."},
-                {"role": "bot", "message": "How many designs?"}]}}
+                {"role": "bot", "message": "What do you sell?"},
+                {"role": "user", "message": "We sell sarees, mostly custom designs."},
+                {"role": "bot", "message": "How many designs?"},
+                {"role": "user", "message": "Around two hundred at any time."}]}}
         swept = asyncio.get_event_loop_policy().new_event_loop().run_until_complete(
             reconcile.sweep(now + timedelta(minutes=10)))
         check("a call whose webhook was lost gets reconciled", call6 in swept, swept)

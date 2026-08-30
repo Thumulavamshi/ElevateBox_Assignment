@@ -179,6 +179,102 @@ def home():
     return HTMLResponse(PAGE)
 
 
+# ----------------------------------------------------------------- monitor
+
+MONITOR = """<!doctype html><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Call monitor</title>
+<style>
+ :root{color-scheme:dark}
+ body{margin:0;background:#0d0d0f;color:#e8e8ea;
+   font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+ header{padding:.9rem 1.1rem;border-bottom:1px solid #26262b;display:flex;
+   gap:.8rem;align-items:baseline;flex-wrap:wrap;background:#0d0d0f}
+ h1{font-size:1rem;margin:0}
+ .dim{color:#8b8b93}
+ main{padding:1.1rem;max-width:56rem;margin:0 auto;display:grid;gap:1.1rem}
+ section{border:1px solid #26262b;border-radius:.6rem;overflow:hidden}
+ h2{font:600 .78rem/1 inherit;letter-spacing:.06em;text-transform:uppercase;
+   margin:0;padding:.65rem .9rem;background:#17171a;color:#a1a1aa}
+ .body{padding:.8rem .9rem;display:grid;gap:.45rem}
+ .turn{display:grid;grid-template-columns:3.2rem 1fr;gap:.6rem;align-items:start}
+ .who{font:600 .72rem/1.6 inherit;letter-spacing:.04em}
+ .agent .who{color:#7dd3fc} .lead .who{color:#86efac}
+ .pill{display:inline-block;padding:.12rem .5rem;border-radius:999px;
+   font:600 .72rem/1.6 inherit;border:1px solid #3f3f46}
+ .hot{background:#7f1d1d;border-color:#b91c1c} .warm{background:#78350f;border-color:#b45309}
+ .cold{background:#1e3a5f;border-color:#1d4ed8}
+ .sent{color:#86efac} .failed{color:#fca5a5} .pending,.sending{color:#fcd34d}
+ table{width:100%;border-collapse:collapse} td{padding:.28rem 0;vertical-align:top}
+ td:first-child{color:#8b8b93;width:11rem;white-space:nowrap}
+ code{font:.82rem ui-monospace,SFMono-Regular,Menlo,monospace;color:#c4b5fd}
+ a{color:#7dd3fc}
+</style>
+<header>
+  <h1>Call monitor</h1>
+  <span class=dim id=meta>loading…</span>
+  <span class=dim style="margin-left:auto">refreshing every 3s</span>
+</header>
+<main id=out></main>
+<script>
+const q=new URLSearchParams(location.search), pinned=q.get('id');
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const t=s=>s?new Date(s).toLocaleTimeString():'';
+async function tick(){
+  try{
+    let id=pinned;
+    if(!id){ const l=await (await fetch('/calls?limit=1')).json();
+             if(!l.calls.length){document.getElementById('meta').textContent='no calls yet';return;}
+             id=l.calls[0].id; }
+    const d=await (await fetch('/calls/'+id)).json(), c=d.call;
+    document.getElementById('meta').innerHTML=
+      `<code>${esc(c.id.slice(0,8))}</code> · ${esc(c.status)}`+
+      (c.ended_reason?` · ${esc(c.ended_reason)}`:'')+` · to ${esc(c.destination)}`;
+    const cls=d.classification;
+    const turns=d.turns.map(x=>`<div class="turn ${x.role==='user'?'lead':'agent'}">
+        <span class=who>${x.role==='user'?'LEAD':'AGENT'}</span>
+        <span>${esc(x.text)}</span></div>`).join('')||'<span class=dim>no turns yet</span>';
+    const slots=Object.entries(d.slots).map(([k,v])=>
+        `<tr><td>${esc(k)}</td><td>${esc(v.value)}${v.raw_quote?
+         `<br><span class=dim>“${esc(v.raw_quote)}”</span>`:''}</td></tr>`).join('')
+        ||'<tr><td colspan=2 class=dim>nothing extracted yet</td></tr>';
+    const acts=d.actions.map(a=>`<tr><td>${esc(a.type)}</td>
+        <td><span class="${esc(a.status)}">${esc(a.status)}</span>
+        <span class=dim>· ${esc(a.trigger_source||'')} · ${t(a.sent_at||a.requested_at)}</span>
+        ${a.error?`<br><span class=failed>${esc(a.error.slice(0,120))}</span>`:''}</td></tr>`)
+        .join('')||'<tr><td colspan=2 class=dim>none fired</td></tr>';
+    const cbs=d.callbacks.map(b=>`<tr><td>${esc(b.status)}</td>
+        <td>${esc(b.resolved_at_utc)} <span class=dim>· “${esc(b.spoken_phrase)}”
+        · ${esc(b.resolution_rule)}</span></td></tr>`).join('')
+        ||'<tr><td colspan=2 class=dim>none booked</td></tr>';
+    const hist=d.classification_history.map(h=>
+        `<span class="pill ${esc(h.label)}">${esc(h.label)}</span>`).join(' ');
+    document.getElementById('out').innerHTML=`
+      <section><h2>Intent ${cls?`— now <span class="pill ${esc(cls.label)}">${esc(cls.label)}</span>`:''}</h2>
+        <div class=body>${hist||'<span class=dim>not classified yet</span>'}
+        ${cls&&cls.evidence_quote?`<div class=dim>“${esc(cls.evidence_quote)}”</div>`:''}</div></section>
+      <section><h2>Transcript (${d.turns.length})</h2><div class=body>${turns}</div></section>
+      <section><h2>Extracted</h2><div class=body><table>${slots}</table></div></section>
+      <section><h2>Messages &amp; actions</h2><div class=body><table>${acts}</table></div></section>
+      <section><h2>Callbacks</h2><div class=body><table>${cbs}</table></div></section>`;
+  }catch(e){ document.getElementById('meta').textContent='error: '+e.message; }
+}
+tick(); setInterval(tick,3000);
+</script>"""
+
+
+@app.get("/monitor", response_class=HTMLResponse)
+def monitor():
+    """Live view of the newest call - or a specific one with ?id=<call_id>.
+
+    Polls the same read routes the API exposes, so it can never show anything
+    the data does not. Exists because a phone call is impossible to debug after
+    the fact from logs alone: this shows the transcript, how the intent read
+    evolved, what was extracted, and exactly which messages fired and when.
+    """
+    return HTMLResponse(MONITOR)
+
+
 # ----------------------------------------------------------------- reads
 
 @app.get("/calls")

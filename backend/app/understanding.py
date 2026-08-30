@@ -35,6 +35,15 @@ SLOT_NAMES = extraction.SLOT_NAMES
 # tokens and latency to produce noise.
 MIN_LEAD_WORDS = 3
 
+# A post-call follow-up is only worth sending if a conversation actually
+# happened. A silent call - the line failed, or they hung up on the greeting -
+# would otherwise send the architecture image and resume with an empty recap.
+# Deliberately low. Failing to send costs a scored row; sending on a marginal
+# call costs almost nothing. This is meant to catch "the line failed" and "they
+# hung up on the greeting", not to judge conversation quality.
+MIN_LEAD_TURNS = 2
+MIN_FOLLOWUP_WORDS = 5
+
 LABELS = ("hot", "warm", "cold")
 BARRIERS = ("budget", "timing", "decision_maker", "none")
 
@@ -105,6 +114,20 @@ async def on_call_ended(call_id):
             extract_slots(call_id, final=True),
             classify(call_id, at_turn_seq=None, final=True),
         )
+        # A call where nobody actually spoke has nothing to follow up ABOUT.
+        # A silent or failed call would otherwise send the architecture image
+        # and the resume with an empty recap - and when the lead redials, they
+        # receive the whole set twice for one conversation. Section 06 asks for
+        # "specifics from the conversation"; with no conversation there are none.
+        turns = db.get_turns(call_id)
+        lead_turns = [t for t in turns if t["role"] == "user"]
+        lead_words = sum(len(t["text"].split()) for t in lead_turns)
+        if len(lead_turns) < MIN_LEAD_TURNS or lead_words < MIN_FOLLOWUP_WORDS:
+            log.info("call %s had %d lead turn(s) / %d words - no conversation to "
+                     "follow up on, skipping the post-call messages",
+                     call_id, len(lead_turns), lead_words)
+            return
+
         # dispatch() is idempotent, so the reconciliation sweeper can call this
         # again safely.
         dispatch(call_id, "whatsapp_followup", trigger_source="post_call")
