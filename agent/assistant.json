@@ -83,7 +83,13 @@
           "required": []
         }
       },
-      "async": true
+      "async": true,
+      "messages": [
+        {
+          "type": "request-start",
+          "content": ""
+        }
+      ]
     },
     {
       "type": "function",
@@ -98,10 +104,19 @@
               "description": "The time exactly as the person said it, for example 'tomorrow morning', 'call me back Monday', 'after 6', 'sometime next week'."
             }
           },
-          "required": ["when"]
+          "required": [
+            "when"
+          ]
         }
       },
-      "async": false
+      "async": false,
+      "messages": [
+        {
+          "type": "request-start",
+          "content": ""
+        }
+      ]
     }
-  ]
+  ],
+  "_comment_tool_messages": "messages[] with an empty request-start suppresses Vapi's canned English filler. Valid types are request-start, request-failed, request-complete, request-response-delayed - all fixed strings, so any non-empty content would be monolingual and wrong on two calls out of three."
 }
