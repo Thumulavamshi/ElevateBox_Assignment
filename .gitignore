@@ -1,0 +1,36 @@
+# Secrets — never commit. The repo link is a submitted artifact.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Runtime
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+node_modules/
+*.log
+
+# Local backend database — 183 MB, and it holds real call transcripts,
+# recording URLs and phone numbers. Never publish this.
+backend/data/
+
+# Real call recordings and transcripts. Same reason: these are actual
+# conversations with real numbers in them, and 22 raw provider payloads add
+# nothing a reader wants. The measured results are quoted in docs/ instead.
+agent/transcripts/
+experiments/**/recordings/
+experiments/**/results/*.json
+
+# Working notes, not deliverables.
+CLAUDE.md
+HANDOFF.md
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

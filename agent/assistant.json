@@ -1,0 +1,107 @@
+{
+  "_comment": "Phase 2 discovery agent. English only. The system prompt is NOT here - it lives in prompt.md and agent.py injects it on deploy, so the prompt stays readable and reviewable. Keys starting with _ are stripped before sending to Vapi.",
+  "name": "elevatebox-discovery-en",
+  "_comment_transcriber": "CONSTRAINED to our three languages, NOT empty. An empty list turns on auto-detect across Soniox's full 60+ language set, and on 8 kHz telephony audio that mis-fires: on 29 Aug it transcribed spoken ENGLISH as MARATHI ('हॅलो', 'माझं', 'तुम्हाला' - Marathi orthography and vocabulary, not Hindi), the agent dutifully mirrored the language it was handed, and a second call transcribed nothing at all and died on silence-timed-out. Naming en/hi/te keeps code-switching available BETWEEN them - still the FR-04 requirement - while removing 57 wrong answers the detector could otherwise pick. This is why we are on Soniox and not Deepgram: Deepgram's `multi` set excludes Telugu, so it can do Telugu OR code-switching, never both. Pin to ['en'] to reproduce the English-only Phase 2 calls.",
+  "transcriber": {
+    "provider": "soniox",
+    "model": "stt-rt-v5",
+    "languages": [
+      "en",
+      "hi",
+      "te"
+    ]
+  },
+  "_comment_voice": "Cartesia 'Ramya - Graceful Host', a native Telugu female, on sonic-3.5. CHOSEN ON EVIDENCE FROM VAPI'S OWN API, not documentation - g10 §3 was wrong twice here. Azure has NO multilingual-auto voice (the deploy 400'd on it), Azure's 59 multilingual voices are all European/Chinese-anchored with zero Telugu, and Smallest AI is no longer a Vapi voice provider at all. Cartesia was never in g10's bake-off and is the only native provider with real te + hi + en voices. Vapi's validator is explicit: Telugu needs sonic-3 or newer - sonic-2 and sonic list only en,fr,de,es,pt,zh,ja,hi,it,ko,nl,pl,ru,sv,tr. `language` is DELIBERATELY OMITTED so Cartesia follows the text instead of being pinned to one language; pinning it would defeat 'handle whichever one I answer in'. One voice across all three is what keeps a code-switched sentence in ONE speaker identity (system-design §4.4). Still unheard on a real call - agent/language-test-script.md is the test.",
+  "voice": {
+    "provider": "cartesia",
+    "voiceId": "cf061d8b-a752-4865-81a2-57570a6e0565",
+    "model": "sonic-3.5"
+  },
+  "_comment_model": "temperature 0.6: needs enough variation to sound human, not so much that it invents prices. messages[] is filled from prompt.md at deploy time.",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "temperature": 0.6,
+    "messages": []
+  },
+  "_comment_startSpeakingPlan": "THE FIX FOR THE MILESTONE-1 LATENCY PROBLEM. That call ran on defaults and 3 of 7 turns exceeded 3s (median 2.53s) - the assignment calls 3s fatal. Defaults are waitSeconds 0.4 and onNoPunctuationSeconds 1.5; Soniox does not always emit punctuation, so hesitant turns waited the full 1.5s before the agent even started thinking. smartEndpointingPlan LiveKit predicts whether the sentence is actually finished instead of just timing silence - Vapi recommends it for English. All three numbers are tunable from .env (ENDPOINT_WAIT / ENDPOINT_NO_PUNCT / ENDPOINT_PUNCT) so calls can be compared without editing files.",
+  "_comment_endpointing_provider": "SWITCHED livekit -> vapi. LiveKit's smart-endpointing model is trained on ENGLISH; on the first full Telugu call it could not predict turn ends and endpointing averaged 7571 ms with one turn at 37 s. The `vapi` provider is the multilingual one. Revert to livekit only if the transcriber is pinned back to ['en'].",
+  "startSpeakingPlan": {
+    "waitSeconds": 0.3,
+    "smartEndpointingPlan": {
+      "provider": "vapi"
+    },
+    "transcriptionEndpointingPlan": {
+      "onPunctuationSeconds": 0.3,
+      "onNoPunctuationSeconds": 1.0,
+      "onNumberSeconds": 0.4
+    }
+  },
+  "_comment_stopSpeakingPlan": "Barge-in. numWords 0 = stop on any detected speech, which is the most responsive setting and matches the assignment's 'people talk over the bot, handle it'. voiceSeconds 0.2 is the default; raise it if room noise starts cutting the agent off mid-sentence.",
+  "stopSpeakingPlan": {
+    "numWords": 0,
+    "voiceSeconds": 0.2,
+    "backoffSeconds": 1.0
+  },
+  "_comment_firstMessage": "Short on purpose. The milestone-1 greeting took 7.1s of speech before the person could reply. Name, one line of why, then hand over.",
+  "firstMessage": "Hi, this is Maya — I help small businesses set up their online store. Have I caught you at an okay time?",
+  "_comment_duration": "5 min cap. A real discovery call runs 3-4 min; the milestone-1 call ended itself at 110s because the probe prompt told it to. That instruction is gone.",
+  "maxDurationSeconds": 420,
+  "_comment_silence": "Raised 20 -> 35. A synchronous tool call (schedule_callback) plus the model composing its confirmation can exceed 20 s of no caller speech, and the timer killed a live call SEVEN SECONDS after the callback had already been booked - the booking survived, the spoken confirmation did not, and that is the half the evaluator can hear.",
+  "silenceTimeoutSeconds": 35,
+  "endCallFunctionEnabled": true,
+  "endCallPhrases": [
+    "goodbye",
+    "bye bye",
+    "take care",
+    "have a good day"
+  ],
+  "recordingEnabled": true,
+  "_comment_analysis": "Vapi generates a free-text summary after each call. Cheap, and useful when reviewing several test calls back to back.",
+  "analysisPlan": {
+    "summaryPlan": {
+      "enabled": true
+    }
+  },
+  "_comment_server": "Vapi pushes live events here. serverUrl is injected at deploy time from SERVER_URL in .env (a tunnel while testing locally, the real host once deployed) so the config file never carries an environment-specific URL. serverMessages is explicit: 'transcript' is what feeds the understanding lane and therefore the watchdog trigger - without it, classification never sees the call.",
+  "serverMessages": [
+    "status-update",
+    "transcript",
+    "end-of-call-report",
+    "tool-calls"
+  ],
+  "_comment_tool_definitions": "NOT part of the assistant payload. Vapi rejects a top-level `tools` property with 400 'property tools should not exist'. A custom tool is its own resource: agent.py creates or updates each via POST/PATCH /tool at deploy time and attaches the returned ids as model.toolIds. Kept here so the definitions stay versioned with the assistant. THE TWO TOOLS DIFFER ON async, deliberately: send_details_now is async because it needs no answer - the 29 Aug call proved the watchdog had already sent the message TWO MINUTES before the model called the tool, so waiting bought nothing and cost an audible pause plus an English 'this will just take a sec' in the middle of a Hindi conversation (audit R4 wanted non-blocking as the primary path anyway). schedule_callback stays sync because its whole purpose is to return the resolved time for the agent to say aloud, which is the part the evaluator can actually hear.",
+  "_tool_definitions": [
+    {
+      "type": "function",
+      "function": {
+        "name": "send_details_now",
+        "description": "Send the caller the details on WhatsApp immediately, while still on the call. Call this the moment they ask to be sent details, pricing, a quote or a portfolio, or ask when work could start. Do not ask permission first - just call it and keep talking, then tell them it is on its way. It sends in the background and returns nothing.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      "async": true
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "schedule_callback",
+        "description": "Book a callback when the person names a time, however vaguely. Pass their words through exactly as they said them - do not convert to a date yourself. The result tells you the real date and time that was booked; say that back to them so they can correct it.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "when": {
+              "type": "string",
+              "description": "The time exactly as the person said it, for example 'tomorrow morning', 'call me back Monday', 'after 6', 'sometime next week'."
+            }
+          },
+          "required": ["when"]
+        }
+      },
+      "async": false
+    }
+  ]
+}

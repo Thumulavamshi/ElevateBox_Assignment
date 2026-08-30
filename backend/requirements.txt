@@ -1,0 +1,14 @@
+# Only two direct dependencies. Both already present in the local environment.
+#   fastapi  - async webhook server; acknowledging Vapi fast is the whole point
+#   uvicorn  - ASGI server to run it
+# Persistence is stdlib sqlite3 (no ORM, no migration tool - the schema is small
+# and the SQL stays readable). HTTP to Vapi is stdlib urllib.
+fastapi>=0.110
+uvicorn>=0.29
+
+# Classification (15-pt row). The classifier is provider-agnostic; either of
+# these satisfies it, and neither is needed for the rules overlay or the eval
+# harness's rules pass. They coexist safely - anthropic 1.x uses httpx2,
+# google-genai uses httpx, and they are separate packages.
+anthropic>=1.0           # claude-opus-5 / sonnet-5 / haiku-4-5   <- ACTIVE
+google-genai>=2.0        # gemini-2.5-flash (free tier, 5 req/min)

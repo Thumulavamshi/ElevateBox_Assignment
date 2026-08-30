@@ -1,0 +1,39 @@
+{
+  "_comment": "MILESTONE 1 — English only. Deliberately minimal: fewest variables so that if the first call misbehaves we know it is not language detection. Keys starting with _ are stripped before sending to Vapi.",
+
+  "name": "elevatebox-probe-en",
+
+  "_comment_transcriber": "Soniox stt-rt-v5 verified against Vapi's provider docs. languages:['en'] pins English for this milestone. For the multilingual phase later, change to [] (empty array) — that one edit enables auto-detection including Telugu/Hindi code-switching. Nothing else changes.",
+  "transcriber": {
+    "provider": "soniox",
+    "model": "stt-rt-v5",
+    "languages": ["en"]
+  },
+
+  "_comment_voice": "Azure en-IN female. Female Indian voice per the assignment's own hint that it lands better on outbound calls in this market. If Vapi rejects this voiceId, run: python run_probe.py preflight  — and see README section 'If the voice ID is rejected'. Override without editing this file via VOICE_PROVIDER / VOICE_ID in .env.",
+  "voice": {
+    "provider": "azure",
+    "voiceId": "en-IN-NeerjaNeural"
+  },
+
+  "_comment_model": "Small, fast model. For a probe the LLM barely matters; the point is telephony + STT + TTS. Kept short-turn on purpose so latency is easy to feel.",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "temperature": 0.5,
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are Maya, calling on behalf of a web developer who builds e-commerce websites for small businesses in India. Speak English only.\n\nThis is a short technical test call. Your goal is simply to hold a natural two-way conversation for about ninety seconds.\n\nRules:\n- Keep every reply to ONE or TWO short sentences. This is a phone call, not an essay.\n- Sound like a person, not a recording. Use natural filler occasionally.\n- Ask about what they sell, roughly what budget they have in mind, and when they'd want it live. Ask one thing at a time.\n- If you don't understand something, ask them to repeat it naturally instead of guessing.\n- If they ask whether you are an AI, say yes, plainly, and carry on.\n- After about ninety seconds, thank them and say goodbye."
+      }
+    ]
+  },
+
+  "firstMessage": "Hi! This is Maya — I help small businesses set up online stores. Is now an okay time for a very quick chat?",
+
+  "endCallPhrases": ["goodbye", "bye bye", "talk to you later"],
+  "endCallFunctionEnabled": true,
+  "maxDurationSeconds": 300,
+  "recordingEnabled": true,
+  "silenceTimeoutSeconds": 30
+}

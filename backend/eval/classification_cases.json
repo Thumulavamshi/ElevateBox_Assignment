@@ -1,0 +1,545 @@
+{
+ "_about": "Labelled cases for the Hot/Warm/Cold row (15 pts). Transcripts are written the way Soniox actually renders live speech - stray full stops, 'uh', mis-heard words - because that is what the classifier will see. Cases marked source 'pdf' use the four phrases the assignment publishes as what it will push us with; those are a must-pass gate, not an average. Hindi and Telugu cases appear in both romanised and native script, because Soniox returns either depending on the utterance. They count towards overall accuracy and towards the per-language breakdown, never towards the pdf gate.",
+ "_fields": {
+  "label": "expected hot|warm|cold",
+  "barrier": "expected budget|timing|decision_maker|none",
+  "rule_forces": "true if the deterministic overlay alone should force hot, with no model call",
+  "source": "pdf = phrase published in the assignment (must-pass gate); pdf-translated = our Hindi/Telugu rendering of one of those four, which is NOT in the gate because we wrote it; ours = written by us",
+  "lang": "en|hi|te|mixed - which language the LEAD speaks. 'mixed' is code-switched, which the scorecard names explicitly"
+ },
+ "cases": [
+  {
+   "id": "h01",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "pdf",
+   "transcript": "assistant: What kind of products do you sell?\nuser: We do custom t-shirts. Send me the details.",
+   "lang": "en"
+  },
+  {
+   "id": "h02",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "pdf",
+   "transcript": "assistant: We build online stores for small businesses.\nuser: Okay. How soon can you start?",
+   "lang": "en"
+  },
+  {
+   "id": "h03",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: I sell sarees. Around two hundred designs.\nassistant: When would you want it live?\nuser: As soon as possible. What will it cost and how many days will it take?",
+   "lang": "en"
+  },
+  {
+   "id": "h04",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "transcript": "user: We have the products ready. Can you start next week?",
+   "lang": "en"
+  },
+  {
+   "id": "h05",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "transcript": "user: Uh. Share the details on WhatsApp, I will look and tell you.",
+   "lang": "en"
+  },
+  {
+   "id": "h06",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "transcript": "assistant: I can put a plan together.\nuser: Yes send it across, I want to see the pricing.",
+   "lang": "en"
+  },
+  {
+   "id": "h07",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: We want it live before Diwali. Budget is around one lakh, that is fine for us.",
+   "lang": "en"
+  },
+  {
+   "id": "h08",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: This is exactly what we need. What is the process to get started?",
+   "lang": "en"
+  },
+  {
+   "id": "h09",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "transcript": "user: Forward me the pricing and I will confirm by tomorrow.",
+   "lang": "en"
+  },
+  {
+   "id": "h10",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "transcript": "user: Email me the proposal. We are ready to move on this.",
+   "lang": "en"
+  },
+  {
+   "id": "h11",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: We can pay an advance. Just tell me how many weeks it takes.",
+   "lang": "en"
+  },
+  {
+   "id": "h12",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Yeah. Let us do it. Where do we sign.",
+   "lang": "en"
+  },
+  {
+   "id": "w01",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "pdf",
+   "transcript": "assistant: Do you have a budget in mind?\nuser: Uh. My budget is not much right now.",
+   "lang": "en"
+  },
+  {
+   "id": "w02",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: I sell handmade soaps, about eighty products.\nassistant: A store that size is around seventy thousand.\nuser: Ah. That is a bit above what I can spend at the moment.",
+   "lang": "en"
+  },
+  {
+   "id": "w03",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: I definitely want to go online. But funds are tight until the season picks up.",
+   "lang": "en"
+  },
+  {
+   "id": "w04",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "ours",
+   "_disputed": "claude-opus-5 reads this as HOT: 'ready to commit immediately at a stated price point'. That is arguable - 'I am in' is commitment language, and twenty thousand is below our floor so there IS a budget barrier. The ACTION the assignment cares about probably favours the model: send this person the details now. Label left as warm deliberately - changing it to make the score look better is exactly the circularity the audit warned about. Decide before the live call.",
+   "transcript": "user: If you can do it within twenty thousand I am in. Otherwise not possible for me now.",
+   "lang": "en"
+  },
+  {
+   "id": "w05",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: I want it, honestly. Money is the only problem right now.",
+   "lang": "en"
+  },
+  {
+   "id": "w06",
+   "label": "warm",
+   "barrier": "timing",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: We sell pooja items. Good idea but not right now, maybe after the festival rush.",
+   "lang": "en"
+  },
+  {
+   "id": "w07",
+   "label": "warm",
+   "barrier": "timing",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: We are shifting the shop to a new place. Can we revisit this in three months.",
+   "lang": "en"
+  },
+  {
+   "id": "w08",
+   "label": "warm",
+   "barrier": "timing",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Busy with GST filing this month. Call me next month, I am interested.",
+   "lang": "en"
+  },
+  {
+   "id": "w09",
+   "label": "warm",
+   "barrier": "timing",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Our season starts in June. Before that there is no point putting it up.",
+   "lang": "en"
+  },
+  {
+   "id": "w10",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "pdf",
+   "transcript": "assistant: Would you want payments and delivery tracking?\nuser: My brother handles this.",
+   "lang": "en"
+  },
+  {
+   "id": "w11",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Sounds useful. I will have to check with my partner before anything.",
+   "lang": "en"
+  },
+  {
+   "id": "w12",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: My son looks after all the online side. He decides these things.",
+   "lang": "en"
+  },
+  {
+   "id": "w13",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: I only manage the counter. The owner will have to decide on this.",
+   "lang": "en"
+  },
+  {
+   "id": "w14",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: It is a joint business with my wife. I need to discuss with her first.",
+   "lang": "en"
+  },
+  {
+   "id": "c01",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "assistant: What do you sell?\nuser: Uh. Nothing much. Just looking around to see what is there.",
+   "lang": "en"
+  },
+  {
+   "id": "c02",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: We already have a website. It is working fine for us.",
+   "lang": "en"
+  },
+  {
+   "id": "c03",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: No no. We only sell in the shop. No online business.",
+   "lang": "en"
+  },
+  {
+   "id": "c04",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Not interested. Please remove my number.",
+   "lang": "en"
+  },
+  {
+   "id": "c05",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Who is this. Who gave you my number.",
+   "lang": "en"
+  },
+  {
+   "id": "c06",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "assistant: We build online stores.\nuser: Just curious what these things cost. No plans as such.",
+   "lang": "en"
+  },
+  {
+   "id": "c07",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Someone already built one for us last year.",
+   "lang": "en"
+  },
+  {
+   "id": "c08",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: We are a very small shop. This is too big for us.",
+   "lang": "en"
+  },
+  {
+   "id": "c09",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: No plans right now. Maybe someday.",
+   "lang": "en"
+  },
+  {
+   "id": "c10",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: We use Instagram only. That is enough for our customers.",
+   "lang": "en"
+  },
+  {
+   "id": "c11",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: Sorry, we closed the business last year.",
+   "lang": "en"
+  },
+  {
+   "id": "c12",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "transcript": "user: I don't need a website. Thank you.",
+   "lang": "en"
+  },
+  {
+   "id": "x01",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "ADVERSARIAL: the hot phrase is spoken by the AGENT, not the lead. Tests that only the lead's lines are read.",
+   "transcript": "assistant: I can send you the details right away if you like.\nuser: No thanks, not interested.",
+   "lang": "en"
+  },
+  {
+   "id": "x02",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "ADVERSARIAL: a send-me phrase next to an explicit refusal. The overlay must NOT force hot here.",
+   "transcript": "user: Not interested really. Send me the details if you want, I will see sometime.",
+   "lang": "en"
+  },
+  {
+   "id": "x03",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "ADVERSARIAL: enthusiastic tone, real barrier. Politeness is not intent.",
+   "transcript": "user: Wow that sounds great, very nice. But honestly I cannot afford it this year.",
+   "lang": "en"
+  },
+  {
+   "id": "x04",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "ADVERSARIAL: barely spoke. Should be cold with low confidence, not a guess.",
+   "transcript": "assistant: Hi, this is Maya. Have I caught you at an okay time?\nuser: Uh. Hello.",
+   "lang": "en"
+  },
+  {
+   "id": "x05",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "_why": "ADVERSARIAL: heavy transcription noise around a clear hot signal.",
+   "transcript": "user: Uh. So basically. We deal with. Custom made clothes and all. Yeah send me the details on whats app.",
+   "lang": "en"
+  },
+  {
+   "id": "x06",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "ADVERSARIAL: gives full discovery answers but defers the decision. Detail is not intent.",
+   "transcript": "user: We sell spices, about a hundred and fifty items, want it by August, need payments and delivery.\nassistant: And budget?\nuser: That my father will decide, it is his business.",
+   "lang": "en"
+  },
+  {
+   "id": "hi01",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "pdf-translated",
+   "_why": "'send me the details' in Hindi. The PDF's own phrase, other language.",
+   "transcript": "assistant: Aap kya bechte hain?\nuser: Hum kapde bechte hain. Mujhe details bhej dijiye WhatsApp par.",
+   "lang": "hi"
+  },
+  {
+   "id": "hi02",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "pdf-translated",
+   "_why": "'how soon can you start' in Hindi.",
+   "transcript": "assistant: Hum poora store bana denge.\nuser: Theek hai, aap kab se shuru kar sakte hain?",
+   "lang": "hi"
+  },
+  {
+   "id": "hi03",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "pdf-translated",
+   "_why": "'my budget is not much right now' in Hindi.",
+   "transcript": "assistant: Budget kitna soch rahe hain?\nuser: Abhi budget zyada nahi hai, thoda time lagega.",
+   "lang": "hi"
+  },
+  {
+   "id": "hi04",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "pdf-translated",
+   "_why": "'my brother handles this' in Hindi.",
+   "transcript": "assistant: To hum aage badhein?\nuser: Ye sab mera bhai dekhta hai, unse poochna padega.",
+   "lang": "hi"
+  },
+  {
+   "id": "te01",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "pdf-translated",
+   "_why": "'send me the details' in Telugu, romanised - how Soniox often renders it.",
+   "transcript": "assistant: Meeru em ammutaru?\nuser: Manam custom sarees ammutam. Details pampandi WhatsApp ki.",
+   "lang": "te"
+  },
+  {
+   "id": "te02",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "pdf-translated",
+   "_why": "'send me the details' in Telugu script.",
+   "transcript": "assistant: What do you sell?\nuser: చీరలు అమ్ముతాము. వివరాలు వాట్సాప్ కి పంపండి.",
+   "lang": "te"
+  },
+  {
+   "id": "te03",
+   "label": "warm",
+   "barrier": "budget",
+   "rule_forces": false,
+   "source": "pdf-translated",
+   "_why": "'my budget is not much right now' in Telugu.",
+   "transcript": "assistant: Budget enta anukuntunnaru?\nuser: Ippudu budget ekkuva ledu andi, konchem time kavali.",
+   "lang": "te"
+  },
+  {
+   "id": "te04",
+   "label": "warm",
+   "barrier": "decision_maker",
+   "rule_forces": false,
+   "source": "pdf-translated",
+   "_why": "'my brother handles this' in Telugu.",
+   "transcript": "assistant: Mundhuku vellocha?\nuser: Idi anna chusukuntadu, aayanni adagali.",
+   "lang": "te"
+  },
+  {
+   "id": "cs01",
+   "label": "hot",
+   "barrier": "none",
+   "rule_forces": true,
+   "source": "ours",
+   "_why": "CODE-SWITCHED: Telugu sentence with English nouns, the Hyderabad default.",
+   "transcript": "assistant: Enni products unnayi?\nuser: Around 300 products unnayi. Meeru pricing details pampandi, nenu chustanu.",
+   "lang": "mixed"
+  },
+  {
+   "id": "cs02",
+   "label": "warm",
+   "barrier": "timing",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "CODE-SWITCHED Hindi/English with a timing barrier, not a budget one.",
+   "transcript": "assistant: Kab tak live karna chahte hain?\nuser: Abhi festival season hai, thoda busy hoon. Diwali ke baad dekhte hain website ka.",
+   "lang": "mixed"
+  },
+  {
+   "id": "cs03",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "CODE-SWITCHED but genuinely cold - polite interest, no need, no budget.",
+   "transcript": "assistant: Meeku online store kavala?\nuser: Ah, just curious ga adiganu. Ippatiki shop bagane nadustundi, online avasaram ledu.",
+   "lang": "mixed"
+  },
+  {
+   "id": "xi01",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "ADVERSARIAL: contains the Hindi send-verb but inside a refusal. The declined guard must win.",
+   "transcript": "assistant: Main aapko details bhej doon?\nuser: Nahi chahiye, mat bhejiye. Hamara already website hai.",
+   "lang": "mixed"
+  },
+  {
+   "id": "xi02",
+   "label": "cold",
+   "barrier": "none",
+   "rule_forces": false,
+   "source": "ours",
+   "_why": "ADVERSARIAL: Telugu refusal using vaddu. Must not read as intent.",
+   "transcript": "assistant: Details pampana?\nuser: Vaddu andi, avasaram ledu. Thanks.",
+   "lang": "mixed"
+  }
+ ]
+}
