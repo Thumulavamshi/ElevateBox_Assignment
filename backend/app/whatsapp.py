@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 
 from . import ultramsg
-from .config import EVALUATOR_NUMBER, settings
+from .config import settings
 
 log = logging.getLogger("elevatebox.whatsapp")
 
@@ -77,22 +77,21 @@ def normalize(number):
 
 
 def _check_destination(number):
-    """Same guard as the dialler: we only ever message the configured number.
+    """Literally the same guard as the dialler - one function, three callers.
 
     Without this, a bug in message composition could send a half-built recap to
     the evaluator during development. The number is not a parameter callers can
     choose freely.
+
+    This used to be a second, independent implementation of the rule, and the two
+    drifted: the dialler had no evaluator check at all, so pointing the system at
+    the evaluator produced a call that connected perfectly and messages that were
+    all refused. Sharing `settings.permits` makes that state unreachable rather
+    than merely unlikely.
     """
-    allowed = normalize(settings.allowed_destination)
-    target = normalize(number)
-    if not target:
-        raise WhatsAppError(0, "no destination number")
-    if allowed and target[-10:] != allowed[-10:]:
-        raise WhatsAppError(0, f"destination {target[-10:]} is not the allowed "
-                               f"destination {allowed[-10:]}")
-    if target[-10:] == normalize(EVALUATOR_NUMBER)[-10:] and not settings.allow_evaluator:
-        raise WhatsAppError(0, "refusing to message the evaluator: set "
-                               "ALLOW_EVALUATOR=1 deliberately for the real run")
+    ok, why = settings.permits(number)
+    if not ok:
+        raise WhatsAppError(0, why)
 
 
 def _throttle(number):

@@ -18,6 +18,22 @@ ENV_CANDIDATES = [
 EVALUATOR_NUMBER = "+918688664337"
 
 
+def digits_of(number):
+    """Just the digits, so +91-830 994 2858 and 918309942858 compare equal."""
+    return "".join(ch for ch in (number or "") if ch.isdigit())
+
+
+def same_number(a, b):
+    """Last ten digits, which is what identifies an Indian mobile regardless of
+    whether the country code or a leading zero was written."""
+    da, dbn = digits_of(a), digits_of(b)
+    return bool(da) and bool(dbn) and da[-10:] == dbn[-10:]
+
+
+def is_evaluator(number):
+    return same_number(number, EVALUATOR_NUMBER)
+
+
 def load_env():
     """Populate os.environ from the first .env found. Returns its path."""
     for path in ENV_CANDIDATES:
@@ -135,6 +151,45 @@ class Settings:
             "ALLOWED_DESTINATION": self.allowed_destination,
         }
         return [k for k, v in required.items() if not v]
+
+    def permits(self, number):
+        """Is this number one we are allowed to contact? Returns (ok, why_not).
+
+        The single place that answers the question, so the dialler, the WhatsApp
+        sender and the callback worker cannot drift apart on it.
+
+        They HAD drifted, and the failure mode was the worst kind: the dialler
+        had no evaluator check at all while the WhatsApp sender did, so pointing
+        ALLOWED_DESTINATION at the evaluator without also setting ALLOW_EVALUATOR
+        produced a call that connected and held a perfect conversation while
+        every single message - mid-call, callback confirmation, follow-up and
+        resume - was silently refused. That is most of the scorecard lost on a
+        call that looks flawless from the phone.
+        """
+        if not digits_of(number):
+            return False, "no destination number"
+        if is_evaluator(number) and not self.allow_evaluator:
+            return False, ("refusing to contact the evaluator: set ALLOW_EVALUATOR=1 "
+                           "deliberately for the real run")
+        if not same_number(number, self.allowed_destination):
+            return False, (f"{digits_of(number)[-10:]} is not the allowed "
+                           f"destination {digits_of(self.allowed_destination)[-10:]}")
+        return True, ""
+
+    def evaluator_ready(self):
+        """Whether a real evaluator run is armed CONSISTENTLY.
+
+        Reported on /health because the dangerous state is not 'blocked', it is
+        'half-armed': allowed to dial but not to message. Blocked is obvious in
+        five seconds; half-armed is only discovered after the one call that
+        mattered has already ended.
+        """
+        if not is_evaluator(self.allowed_destination):
+            return False, "evaluator is not the ALLOWED_DESTINATION"
+        if not self.allow_evaluator:
+            return False, ("evaluator is dialable but ALLOW_EVALUATOR is not 1 - "
+                           "the call would connect and every WhatsApp would be refused")
+        return True, "armed: the evaluator can be called and messaged"
 
 
 settings = Settings()

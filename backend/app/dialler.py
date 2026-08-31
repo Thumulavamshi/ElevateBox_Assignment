@@ -43,6 +43,14 @@ def place(is_callback_of=None, context="", first_message=None):
         raise DialError(503, f"not configured: {', '.join(settings.missing())}")
 
     destination = settings.allowed_destination
+
+    # The SAME guard the WhatsApp sender uses. This check was missing here while
+    # the sender had it, which meant a run pointed at the evaluator without
+    # ALLOW_EVALUATOR=1 dialled happily and then refused every message. Refusing
+    # the call too makes that state loud instead of silent.
+    ok, why = settings.permits(destination)
+    if not ok:
+        raise DialError(403, why)
     call_id = db.create_call(destination, assistant_id=settings.vapi_assistant_id,
                              is_callback_of=is_callback_of)
     db.add_event(call_id, "trigger.requested",

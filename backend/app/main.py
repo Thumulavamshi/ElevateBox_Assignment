@@ -90,6 +90,10 @@ def health():
         # Shown so a misconfiguration is obvious before a call, not after.
         "allowed_destination": dest,
         "destination_is_evaluator": _same_number(dest, EVALUATOR_NUMBER),
+        # The pre-flight for the one call that matters. "blocked" is obvious;
+        # "half-armed" - dialable but not messageable - is not, and it costs
+        # every WhatsApp on a call that otherwise looks perfect.
+        "evaluator_run": dict(zip(("ready", "detail"), settings.evaluator_ready())),
         "actions": actions.status_report(),
         "understanding": understanding.status_report(),
         "classifier": classifier.providers_status(),

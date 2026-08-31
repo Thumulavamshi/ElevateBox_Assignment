@@ -789,6 +789,58 @@ def main():
               sum(1 for a in db.get_actions(call6)
                   if a["type"] == "whatsapp_followup") == 1, db.get_actions(call6))
 
+        print("\nEVALUATOR ARMING  (the call must never outrun the messages)")
+        # The real bug this replaces: the dialler had no evaluator check while
+        # the WhatsApp sender did, so pointing ALLOWED_DESTINATION at the
+        # evaluator without ALLOW_EVALUATOR=1 gave a flawless call and refused
+        # every message on it. Both paths must now agree in all three states.
+        from app import dialler                                    # noqa: E402
+        original = (settings.allowed_destination, settings.allow_evaluator)
+        try:
+            def both(number):
+                """(dial_ok, whatsapp_ok) for one destination."""
+                dial_ok = settings.permits(number)[0]
+                try:
+                    whatsapp._check_destination(number)
+                    wa_ok = True
+                except whatsapp.WhatsAppError:
+                    wa_ok = False
+                return dial_ok, wa_ok
+
+            settings.allowed_destination = "+919876543210"
+            settings.allow_evaluator = False
+            check("own number: dial and message both allowed",
+                  both("+919876543210") == (True, True), both("+919876543210"))
+            check("evaluator refused from a normal run",
+                  both(EVALUATOR_NUMBER) == (False, False), both(EVALUATOR_NUMBER))
+
+            # HALF-ARMED: the state that used to lose most of the scorecard.
+            settings.allowed_destination = EVALUATOR_NUMBER
+            settings.allow_evaluator = False
+            check("half-armed: dial and message BOTH refused, never split",
+                  both(EVALUATOR_NUMBER) == (False, False), both(EVALUATOR_NUMBER))
+            check("half-armed is reported on /health",
+                  settings.evaluator_ready()[0] is False
+                  and "every WhatsApp would be refused" in settings.evaluator_ready()[1],
+                  settings.evaluator_ready())
+            try:
+                dialler.place()
+                check("half-armed dialler refuses to place the call", False, "it dialled")
+            except dialler.DialError as exc:
+                check("half-armed dialler refuses to place the call",
+                      exc.status == 403, exc.detail)
+
+            # ARMED: the real run.
+            settings.allow_evaluator = True
+            check("armed: dial and message both allowed",
+                  both(EVALUATOR_NUMBER) == (True, True), both(EVALUATOR_NUMBER))
+            check("armed is reported ready on /health",
+                  settings.evaluator_ready()[0] is True, settings.evaluator_ready())
+            check("armed still refuses a number that is not the destination",
+                  both("+919876543210") == (False, False), both("+919876543210"))
+        finally:
+            settings.allowed_destination, settings.allow_evaluator = original
+
         print("\nCALLBACK CLAIM  (cannot double-fire)")
         cb = db.add_callback(call_id, "2020-01-01T00:00:00+00:00", "tomorrow morning", "morning->10:00")
         first = db.claim_due_callback()
