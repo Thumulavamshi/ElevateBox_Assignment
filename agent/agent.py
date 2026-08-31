@@ -57,7 +57,13 @@ TOPICS = {
                        "number of products", "designs", "skus", "few dozen",
                        "a hundred", "few hundred", "items are you",
                        "कितने", "कितनी", "kitne", "kitni", "डिज़ाइन्स", "प्रोडक्ट्स",
-                       "ఎన్ని", "enni", "ప్రొడక్ట్"],
+                       "ఎన్ని", "enni", "ప్రొడక్ట్",
+                       # "ఎంత ఉత్పత్తులు" is wrong Telugu (ఎంత is for amounts,
+                       # ఎన్ని for countables) but the agent says it, and a
+                       # measurement that only recognises correct grammar scores
+                       # a raised topic as missed. Matched as a PHRASE, never as
+                       # bare "ఎంత", which also appears in "బడ్జెట్ ఎంత".
+                       "ఎంత ఉత్పత్తుల", "ఉత్పత్తులు ఉన్నాయి", "ఉత్పత్తుల కోసం"],
     "timeline": ["when would", "when do you", "how soon", "go live", "timeline",
                  "by when", "want it live", "when are you",
                  "कब तक", "कब लाइव", "kab tak", "कब चाहिए",
