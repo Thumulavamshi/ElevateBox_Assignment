@@ -81,15 +81,43 @@ def _signature():
     return "\n".join(lines)
 
 
+def _greeting(slots, base):
+    """"Hi Ravi - " when we learned a name, plain "Hi - " when we did not.
+
+    The extractor only fills contact_name when the lead plainly said it, so an
+    empty value here means "we never got one", not "extraction failed". Greeting
+    someone by a mis-heard name is worse than not using one, so there is no
+    fallback and no guess.
+    """
+    name = ((slots.get("contact_name") or {}).get("value") or "").strip()
+    return f"Hi {name} - {base}" if name else f"Hi - {base}"
+
+
+# What to call each slot when we quote it back. The label has to follow the
+# quote we actually picked: this used to print "On budget you said" over
+# whichever quote was found first, so a features quote got introduced as a
+# budget one - misattributing the lead's own words in the one line that exists
+# to prove we listened.
+QUOTE_LABELS = (
+    ("budget", "On budget you said"),
+    ("features", "On what you need you said"),
+    ("timeline", "On timing you said"),
+    ("products", "You said"),
+)
+
+
 def _verbatim(slots):
-    """One thing they actually said, quoted back. 'The follow up quotes
-    something specific I said' is on the impress-us list."""
-    for name in ("budget", "features", "timeline", "products"):
+    """One thing they actually said, quoted back, with the right label.
+
+    'The follow up quotes something specific I said' is on the impress-us list.
+    Returns (label, quote), or (None, "") when nothing is quotable.
+    """
+    for name, label in QUOTE_LABELS:
         row = slots.get(name) or {}
         quote = (row.get("raw_quote") or "").strip()
         if quote and len(quote.split()) >= 3:
-            return quote
-    return ""
+            return label, quote
+    return None, ""
 
 
 @handler("whatsapp_hot")
@@ -106,7 +134,7 @@ async def send_mid_call(call_id, payload):
 
     if whatsapp.supports_freeform():
         bullets = _bullets(slots)
-        body = ["Hi - this is Maya, from the call we're on right now.",
+        body = [_greeting(slots, "this is Maya, from the call we're on right now."),
                 "",
                 "Sending this across as promised. We build custom online stores "
                 "for small businesses: payment gateway, cash on delivery, order "
@@ -146,14 +174,14 @@ async def send_mid_call(call_id, payload):
 def _followup_text(slots):
     """The post-call message. Carries Section 06 items 1, 2 and 3; the image it
     rides on is item 4."""
-    body = ["Hi - Maya here, following up on our call just now.", ""]
+    body = [_greeting(slots, "Maya here, following up on our call just now."), ""]
     bullets = _bullets(slots)
     if bullets:
         body += ["Here's what I took away:"] + bullets + [""]
 
-    quote = _verbatim(slots)
+    label, quote = _verbatim(slots)
     if quote:
-        body += [f'On budget you said: "{quote}"', ""]
+        body += [f'{label}: "{quote}"', ""]
 
     body += ["The image attached is how the system that just called you is "
              "built - the call itself, the live transcript, how it read your "

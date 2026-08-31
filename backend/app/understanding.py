@@ -27,8 +27,11 @@ from .actions import dispatch
 log = logging.getLogger("elevatebox.understanding")
 
 # The five things the assignment names: "Budget, what I sell, how many products,
-# timeline, features I need."
+# timeline, features I need." `coverage()` reports on these alone.
 SLOT_NAMES = extraction.SLOT_NAMES
+# Everything we persist, which additionally includes the lead's name. Kept out
+# of SLOT_NAMES so a call with no name is never reported as incomplete discovery.
+ALL_SLOT_NAMES = extraction.ALL_SLOT_NAMES
 
 # Below this, the lead has not said enough to be worth a model call on either
 # job. One "hello" is not a signal, and classifying or extracting it burns
@@ -173,7 +176,7 @@ async def extract_slots(call_id, at_turn_seq=None, final=False):
 
     existing = db.get_slots(call_id)
     written = 0
-    for name in SLOT_NAMES:
+    for name in ALL_SLOT_NAMES:
         change = extraction.merge(existing, name, getattr(found, name), turns)
         if not change:
             continue

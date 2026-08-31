@@ -31,7 +31,16 @@ from . import classifier
 log = logging.getLogger("elevatebox.extraction")
 
 # The five the assignment names, in the order a real call tends to reveal them.
+# This tuple stays exactly five: it drives discovery `coverage()` and the evals,
+# and the assignment scores those five topics specifically.
 SLOT_NAMES = ("products", "catalogue_size", "timeline", "features", "budget")
+
+# Extracted and stored like a slot, but NOT part of discovery coverage - not
+# knowing someone's name is not a gap in qualifying them. It exists so the
+# follow-up can open "Hi Ravi" instead of "Hi", which is the difference between
+# a message written to a person and one written to a record.
+EXTRA_SLOT_NAMES = ("contact_name",)
+ALL_SLOT_NAMES = SLOT_NAMES + EXTRA_SLOT_NAMES
 
 
 class Slot(BaseModel):
@@ -57,13 +66,16 @@ class ExtractedSlots(BaseModel):
     timeline: Slot = Field(description="When they want the store live.")
     features: Slot = Field(description="Features they said they need.")
     budget: Slot = Field(description="What they are willing to spend.")
+    contact_name: Slot = Field(
+        description="The lead's own first name, ONLY if they clearly said it. "
+                    "Empty if unsure, garbled, or never given.")
 
 
 SYSTEM_PROMPT = """\
 You pull structured facts out of a live sales-call transcript. The business \
 sells custom e-commerce websites to small Indian businesses.
 
-Extract five things, and only from what the LEAD said. Lines beginning "user:" \
+Extract these, and only from what the LEAD said. Lines beginning "user:" \
 are the lead. Lines beginning "assistant:" are our own salesperson - never \
 extract from those, even when the salesperson repeats a number back.
 
@@ -72,6 +84,7 @@ extract from those, even when the salesperson repeats a number back.
   timeline        when they want the store live
   features        the features they said they need
   budget          what they are willing to spend
+  contact_name    the lead's own first name, if they clearly gave it
 
 Rules:
 
@@ -99,7 +112,12 @@ Translating the quote destroys the one thing it is for.
 that field. "3 to 2. 100." after a question about how many products is a \
 catalogue size, not a budget.
 - If the lead asks US for a price rather than naming one, budget stays empty. \
-Being asked "give me a range" is not a stated budget.\
+Being asked "give me a range" is not a stated budget.
+- contact_name is the lead's OWN first name and nothing else. Not our \
+salesperson's name, not a brand, not a shop name, not a relative they mention. \
+Leave it empty unless they plainly gave it - a mis-heard name used back at \
+someone is worse than using no name at all. Write it capitalised and alone: \
+"Ravi", not "ravi garu" and not "My name is Ravi".\
 """
 
 USER_TEMPLATE = "Transcript so far:\n\n{transcript}\n\nExtract the five fields."

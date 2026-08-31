@@ -81,7 +81,9 @@ classifier.run_structured = _no_model
 def slots(**kw):
     """An ExtractedSlots with everything empty except what is named."""
     empty = extraction.Slot(value="", quote="", confidence=0.0)
-    fields = {n: empty for n in extraction.SLOT_NAMES}
+    # ALL_SLOT_NAMES, not SLOT_NAMES: the model carries contact_name too, which
+    # is stored like a slot but deliberately excluded from discovery coverage.
+    fields = {n: empty for n in extraction.ALL_SLOT_NAMES}
     for name, (value, quote) in kw.items():
         fields[name] = extraction.Slot(value=value, quote=quote, confidence=0.9)
     return extraction.ExtractedSlots(**fields)

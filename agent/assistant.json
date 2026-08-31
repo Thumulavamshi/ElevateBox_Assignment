@@ -44,7 +44,7 @@
     "backoffSeconds": 1.0
   },
   "_comment_firstMessage": "Short on purpose. The milestone-1 greeting took 7.1s of speech before the person could reply. Name, one line of why, then hand over.",
-  "firstMessage": "Hi, this is Maya — I help small businesses set up their online store. Have I caught you at an okay time?",
+  "firstMessage": "Hello! Am I speaking with you at a good time?",
   "_comment_duration": "5 min cap. A real discovery call runs 3-4 min; the milestone-1 call ended itself at 110s because the probe prompt told it to. That instruction is gone.",
   "maxDurationSeconds": 420,
   "_comment_silence": "Raised 20 -> 35. A synchronous tool call (schedule_callback) plus the model composing its confirmation can exceed 20 s of no caller speech, and the timer killed a live call SEVEN SECONDS after the callback had already been booked - the booking survived, the spoken confirmation did not, and that is the half the evaluator can hear.",
