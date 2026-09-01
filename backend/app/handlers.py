@@ -134,7 +134,7 @@ async def send_mid_call(call_id, payload):
 
     if whatsapp.supports_freeform():
         bullets = _bullets(slots)
-        body = [_greeting(slots, "this is Maya, from the call we're on right now."),
+        body = [_greeting(slots, "this is Geeta, from the call we're on right now."),
                 "",
                 "Sending this across as promised. We build custom online stores "
                 "for small businesses: payment gateway, cash on delivery, order "
@@ -174,7 +174,7 @@ async def send_mid_call(call_id, payload):
 def _followup_text(slots):
     """The post-call message. Carries Section 06 items 1, 2 and 3; the image it
     rides on is item 4."""
-    body = [_greeting(slots, "Maya here, following up on our call just now."), ""]
+    body = [_greeting(slots, "Geeta here, following up on our call just now."), ""]
     bullets = _bullets(slots)
     if bullets:
         body += ["Here's what I took away:"] + bullets + [""]

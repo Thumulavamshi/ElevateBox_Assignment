@@ -28,7 +28,7 @@ def place(is_callback_of=None, context="", first_message=None):
     """Dial the one allowed destination. Returns the call row's fields.
 
     `context` and `first_message` exist for callbacks. A callback that opens
-    "Hi, this is Maya, I help small businesses..." to someone we spoke to
+    "Hi, this is Geeta, I help small businesses..." to someone we spoke to
     yesterday is not a callback, it is a cold call with a timer on it. Both are
     passed as Vapi assistantOverrides so the deployed assistant is untouched.
 

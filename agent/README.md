@@ -137,7 +137,7 @@ change for those anyway — polishing it now would be partly throwaway work.
 3. **The greeting is three sentences.** It flags as long on every call.
 4. **Features gets asked twice** (payments, then tracking/WhatsApp). Reasonable, but it trips the
    re-asking heuristic — decide whether it should be one combined question.
-5. **`EDIT ME` pricing is still my invention.** Maya quotes these rupee ranges on live calls.
+5. **`EDIT ME` pricing is still my invention.** Geeta quotes these rupee ranges on live calls.
    **This must be replaced with real rates before anything goes to the evaluator.**
 6. ~~"Never promise a WhatsApp or callback" must come out of the prompt~~ — done; the prompt now
    drives `send_details_now` and `schedule_callback`, and forbids claiming either without the tool.

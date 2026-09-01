@@ -97,7 +97,7 @@ _RECAP = (("products", "sells"), ("catalogue_size", "catalogue"),
 def build_context(call_id):
     """What the agent should already know when it rings back. May be empty.
 
-    Without this a callback opens "Hi, this is Maya, I help small businesses get
+    Without this a callback opens "Hi, this is Geeta, I help small businesses get
     their shop online" to someone we spoke to yesterday - which is not a
     callback, it is a cold call that happens to be on time. It also has to stop
     the agent re-running discovery on facts we already hold.
@@ -128,7 +128,7 @@ def opening_line(call_id):
     sells = (slots.get("products") or {}).get("value")
     if not sells:
         return None
-    return (f"Hi, it's Maya again - we spoke about the online store for your "
+    return (f"Hi, it's Geeta again - we spoke about the online store for your "
             f"{sells}. Is now still a good time?")
 
 

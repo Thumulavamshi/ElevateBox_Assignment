@@ -20,7 +20,7 @@
   "_comment_model": "temperature 0.6: needs enough variation to sound human, not so much that it invents prices. messages[] is filled from prompt.md at deploy time.",
   "model": {
     "provider": "openai",
-    "model": "gpt-4o-mini",
+    "model": "gpt-4.1",
     "temperature": 0.6,
     "messages": []
   },
