@@ -49,6 +49,9 @@ OK, BAD, WARN, INFO = "  [ok]", "  [FAIL]", "  [warn]", "  [..]"
 # false alarm here sends us fixing something that already works.
 TOPICS = {
     "what they sell": ["what kind of product", "what do you sell", "do you sell",
+                       # "What is it you sell?" is the phrasing the agent now
+                       # actually uses; without it a raised topic scores as missed.
+                       "is it you sell", "what are you selling", "what you sell",
                        "what sort of", "what products", "kind of business",
                        "what are you selling",
                        "क्या बेचते", "क्या बेचती", "kya bechte", "kya bechti",
