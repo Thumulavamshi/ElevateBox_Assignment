@@ -527,6 +527,61 @@ def check_backend():
     return True
 
 
+def live_matches_local():
+    """Refuse to dial an assistant that is not the config on disk.
+
+    `check` validates the LOCAL files; `call` dials whatever Vapi has stored.
+    Those are different things, and the gap has cost several debugging calls:
+    the prompt was edited, a call was placed without deploying, and the
+    transcript was then read as evidence about rules that were never live.
+    A diagnosis drawn from the wrong build is worse than no diagnosis.
+
+    Read-only and free - one GET before anything is spent.
+    """
+    aid = os.environ.get("VAPI_ASSISTANT_ID", "").strip()
+    if not aid:
+        return True
+    try:
+        live = request("GET", f"/assistant/{aid}")
+    except Exception as exc:
+        print(f"{WARN} could not read the live assistant ({exc}) - skipping")
+        print("       the drift check. Run `inspect` if the call behaves oddly.")
+        return True
+
+    local = load_assistant()
+    def sysprompt(cfg):
+        msgs = (cfg.get("model") or {}).get("messages") or []
+        return next((m.get("content", "") for m in msgs
+                     if m.get("role") == "system"), "")
+
+    drift = []
+    lp, rp = sysprompt(local).strip(), sysprompt(live).strip()
+    if lp != rp:
+        drift.append(f"system prompt   local {len(lp)} chars != live {len(rp)} chars")
+    for key in ("voice", "stopSpeakingPlan", "startSpeakingPlan", "transcriber"):
+        if local.get(key) != live.get(key):
+            drift.append(f"{key:15} local {json.dumps(local.get(key))[:55]}"
+                         f" != live {json.dumps(live.get(key))[:55]}")
+    lm = (local.get("model") or {}).get("model")
+    rm = (live.get("model") or {}).get("model")
+    if lm and lm != rm:
+        drift.append(f"model           local {lm} != live {rm}")
+
+    if not drift:
+        print(f"  {OK} live assistant matches your local config")
+        return True
+
+    print(f"{BAD} THE LIVE ASSISTANT IS NOT WHAT IS ON DISK.")
+    print("      Dialling now tests the OLD config, and the transcript would")
+    print("      tell you nothing about the changes you just made.")
+    print("")
+    for d in drift:
+        print(f"      - {d}")
+    print("")
+    print("      Fix:  SERVER_URL=... python agent/agent.py deploy")
+    print("      Then re-run this command.")
+    return False
+
 def cmd_call():
     print("\nPLACING CALL  (spends money, rings a real phone)\n" + "-" * 52)
     if "--yes" not in sys.argv:
@@ -542,6 +597,8 @@ def cmd_call():
         return 1
 
     print()
+    if not live_matches_local():
+        return 1
     if not check_backend():
         print(f"\n{BAD} refusing to place the call - fix the above first.")
         return 1
