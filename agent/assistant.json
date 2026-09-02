@@ -14,7 +14,7 @@
   "_comment_voice": "Cartesia 'Ramya - Graceful Host', a native Telugu female, on sonic-3.5. CHOSEN ON EVIDENCE FROM VAPI'S OWN API, not documentation - g10 §3 was wrong twice here. Azure has NO multilingual-auto voice (the deploy 400'd on it), Azure's 59 multilingual voices are all European/Chinese-anchored with zero Telugu, and Smallest AI is no longer a Vapi voice provider at all. Cartesia was never in g10's bake-off and is the only native provider with real te + hi + en voices. Vapi's validator is explicit: Telugu needs sonic-3 or newer - sonic-2 and sonic list only en,fr,de,es,pt,zh,ja,hi,it,ko,nl,pl,ru,sv,tr. `language` is DELIBERATELY OMITTED so Cartesia follows the text instead of being pinned to one language; pinning it would defeat 'handle whichever one I answer in'. One voice across all three is what keeps a code-switched sentence in ONE speaker identity (system-design §4.4). Still unheard on a real call - agent/language-test-script.md is the test.",
   "voice": {
     "provider": "cartesia",
-    "voiceId": "cf061d8b-a752-4865-81a2-57570a6e0565",
+    "voiceId": "f27829bf-5449-4da9-af82-858440e7f40b",
     "model": "sonic-3.5"
   },
   "_comment_model": "temperature 0.6: needs enough variation to sound human, not so much that it invents prices. messages[] is filled from prompt.md at deploy time.",
@@ -37,11 +37,16 @@
       "onNumberSeconds": 0.4
     }
   },
-  "_comment_stopSpeakingPlan": "Barge-in. numWords 0 = stop on any detected speech, which is the most responsive setting and matches the assignment's 'people talk over the bot, handle it'. voiceSeconds 0.2 is the default; raise it if room noise starts cutting the agent off mid-sentence.",
+  "_comment_stopSpeakingPlan": "Barge-in. numWords 0 stopped on ANY 200ms of sound, so a cough or a backchannelled 'hmm' cut the agent off mid-sentence - observed twice on call 01a05e6e ('Sorry, you're-' / 'What kind of-'). numWords 2 requires two real words instead. Genuine interruption still works instantly: interruptionPhrases override numWords, and acknowledgementPhrases stop Indian backchannels (haan, acha, hmm) from counting as an interruption at all.",
   "stopSpeakingPlan": {
-    "numWords": 0,
-    "voiceSeconds": 0.2,
-    "backoffSeconds": 1.0
+    "numWords": 2,
+    "voiceSeconds": 0.3,
+    "backoffSeconds": 1.0,
+    "acknowledgementPhrases": ["hmm", "mhmm", "uh huh", "ok", "okay", "yeah", "yes",
+                               "haan", "हाँ", "हां", "अच्छा", "ठीक", "ఆ", "అవును",
+                               "సరే", "ok andi", "sari"],
+    "interruptionPhrases": ["stop", "wait", "no", "hold on", "actually", "sorry",
+                            "ruko", "रुको", "नहीं", "ఆగండి", "వద్దు"]
   },
   "_comment_firstMessage": "Short on purpose. The milestone-1 greeting took 7.1s of speech before the person could reply. Name, one line of why, then hand over.",
   "firstMessage": "Hello! Am I speaking with you at a good time?",
